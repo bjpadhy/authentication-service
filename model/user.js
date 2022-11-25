@@ -24,7 +24,8 @@ export const verifyUserPassword = (email, password) => {
               u.email, 
               COALESCE(ut.user_type, 'PRIMARY') AS "userType", 
               COALESCE(ut.roles, '{admin}'::text[]) AS roles, 
-              (u.password_hash = crypt(?, u.password_hash)) AS assert_password`,
+              (u.password_hash = crypt(?, u.password_hash)) AS assert_password,
+              u.is_reset_password_initiated`,
         password
       )
     )
