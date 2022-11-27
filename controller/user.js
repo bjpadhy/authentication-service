@@ -1,7 +1,72 @@
-import { BadRequestInputError, ResourceNotFoundError, UnauthorizedError } from "../lib/error";
-import { verifyUserPassword } from "../model/user";
+import {
+  BadRequestInputError,
+  ResourceNotFoundError,
+  UnauthorizedError,
+  ResourceConflictError,
+  InternalError,
+} from "../lib/error";
+import { isEmailValid, convertObjectKeysToSnakeCase } from "../lib/utils";
+import { getUserByEmail, upsertUser, verifyUserPassword } from "../model/user";
 import { nanoid } from "nanoid";
 import * as jose from "jose";
+
+/**
+ * Executes email and password sign-up for a user
+ * @async
+ * @function
+ * @param {Object} payloadData - signUp payload
+ * @param {String} payloadData.email - user email
+ * @param {String} payloadData.password - user password
+ * @param {String} payloadData.firstName - user first name
+ * @param {String} payloadData.lastName - user last name
+ * @returns {Promise<Object>} Response object with JWT Token if signup was success
+ *
+ * @throws {ResourceConflictError} When user with email already exists
+ * @throws {InternalError} When upsert user runs into an error
+ */
+export const signUpUser = async (payloadData) => {
+  const { email, password, ...additionalData } = payloadData;
+  // Validate required inputs
+  const validatedPayloadData = _validateEmailPassword({ email, password });
+
+  // Check is there is an existing user with same email
+  const existingUser = await getUserByEmail(validatedPayloadData.email);
+  if (!_.isEmpty(existingUser))
+    throw new ResourceConflictError("User with same email already exists", { email: validatedPayloadData.email });
+
+  // If it's a new user or deleted user, execute upsert
+  const upsertData = convertObjectKeysToSnakeCase({ ...validatedPayloadData, ...additionalData });
+
+  // Upsert user and get claims data
+  const user = _.first(await upsertUser(upsertData));
+
+  // If signUp was success, return the JWT
+  if (user) return { token: await _generateJWT(user) };
+
+  throw new InternalError("Error while creating user", validatedPayloadData);
+};
+
+/**
+ * Validate email and password input
+ *
+ * @function
+ * @param {Object} validationData - validation payload
+ * @param {String} validationData.email - user email
+ * @param {String} validationData.password - user password
+ * @returns {Object} Validated data
+ * @throws {BadRequestInputError} When email or password input is missing/email format is invalid
+ */
+const _validateEmailPassword = (validationData) => {
+  const { email = "", password = "" } = validationData;
+
+  // Validate input presence
+  if ((email.length && password.length) === 0) throw new BadRequestInputError("Email or password missing", {});
+
+  //  Validate email format
+  if (!isEmailValid(email)) throw new BadRequestInputError("Email address format is invalid", { email });
+
+  return { email: _.trim(email), password_hash: _.trim(password) };
+};
 
 /**
  * Executes email and password sign-in for a user
@@ -11,15 +76,13 @@ import * as jose from "jose";
  * @param {String} payloadData.email - user email
  * @param {String} payloadData.password - user password
  * @returns {Promise<Object>} Response object with JWT Token
- * @throws {BadRequestInputError} When email or password input is missing
+ *
  * @throws {ResourceNotFoundError} When a user with matching email does not exist UnauthorizedError
  * @throws {UnauthorizedError} When the password is incorrect
  */
 export const signInUser = async (payloadData) => {
-  const { email = "", password = "" } = payloadData;
-
   // Validate input
-  if ((email.length && password.length) === 0) throw new BadRequestInputError("Email or password missing", { email });
+  const { email, password_hash: password } = _validateEmailPassword(payloadData);
 
   // Verify password and fetch user
   const { assert_password, is_reset_password_initiated, ...user } = (await verifyUserPassword(email, password)) || {};
@@ -27,8 +90,7 @@ export const signInUser = async (payloadData) => {
 
   // If password is correct, return the JWT
   if (assert_password && !is_reset_password_initiated) {
-    const jwt = await _generateJWT(user);
-    return { token: jwt };
+    return { token: await _generateJWT(user) };
   }
 
   // Throw 401 for incorrect password/reset initiated
