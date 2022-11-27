@@ -2,8 +2,8 @@ const authRoute = require("./auth");
 
 // Auth routes
 router.post("/signup", authRoute.signUp);
-// router.post("/request-otp", authRoute.requestOTP);
+router.post("/init_reset_password", authRoute.initiateResetPassword);
 router.get("/signin", authRoute.signIn);
-// router.post("/resetpassword", authRoute.resetPassword);
+// router.post("/reset_password", authRoute.resetPassword);
 
 module.exports = router;
