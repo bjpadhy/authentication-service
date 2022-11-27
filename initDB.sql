@@ -10,9 +10,8 @@ CREATE TABLE auth.user
     password_hash               TEXT        NOT NULL,
     is_reset_password_initiated BOOLEAN   DEFAULT false,
     is_deleted                  BOOLEAN   DEFAULT false,
-    deleted_by                  UUID,
     deleted_at                  TIMESTAMP,
-    created_by                  UUID,
+    updated_at                  TIMESTAMP,
     created_at                  TIMESTAMP DEFAULT now()
 );
 
