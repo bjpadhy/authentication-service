@@ -31,4 +31,16 @@ export const initiateResetPassword = async (req, res) => {
   }
 };
 
+export const initiateUpdatePassword = async (req, res) => {
+  try {
+    const result = await generateAndShareUserOTP({
+      email: _.get(req, "body.email", ""),
+      triggerAction: "UPDATE_PASSWORD",
+    });
+    return res.status(202).json(result);
+  } catch (error) {
+    return errorHandler({ error }, res);
+  }
+};
+
 module.exports = router;
