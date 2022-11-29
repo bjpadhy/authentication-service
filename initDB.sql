@@ -26,7 +26,6 @@ CREATE TABLE auth.user_otp_map
 );
 CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS uniq_user_otp_user_id_type_idx ON auth.user_otp_map (fk_user_id, type);
 
-
 CREATE OR REPLACE FUNCTION auth.generate_otp(user_email text, trigger_type text)
     RETURNS INTEGER
     LANGUAGE plpgsql
@@ -57,7 +56,7 @@ CREATE OR REPLACE FUNCTION auth.update_password(user_email text, user_otp int, t
 AS
 $$
 DECLARE
-is_otp_expired BOOLEAN = false;
+is_otp_expired BOOLEAN;
     is_success     BOOLEAN;
     user_id        UUID;
     otp_id         UUID;
@@ -73,7 +72,7 @@ WHERE uu.email = user_email
   AND upro.otp = user_otp
     INTO user_id, is_otp_expired, otp_id;
 
-IF is_otp_expired = false THEN
+IF is_otp_expired = false AND otp_id IS NOT NULL THEN
 UPDATE auth.user u
 SET password_hash               = new_password,
     is_reset_password_initiated = CASE
