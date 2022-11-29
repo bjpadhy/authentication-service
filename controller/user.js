@@ -108,8 +108,9 @@ export const signInUser = async (payloadData) => {
  * @returns {Promise<String>} JWT Token
  */
 const _generateJWT = (payload) => {
+  const { id, email, source_id } = payload;
   const privateKey = new TextEncoder().encode(env.PRIVATE_KEY);
-  return new jose.SignJWT(payload)
+  return new jose.SignJWT({ id, email, source_id })
     .setProtectedHeader({ alg: "HS256" })
     .setJti(nanoid())
     .setIssuedAt()
