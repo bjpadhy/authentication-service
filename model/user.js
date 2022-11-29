@@ -77,7 +77,12 @@ export const upsertUser = (payloadData) => {
     .into("auth.user")
     .returning("*")
     .onConflict("email")
-    .merge({ ..._.omit(payloadData, ["email", "password_hash"]), updated_at: db.fn.now(), is_deleted: false });
+    .merge({
+      ..._.omit(payloadData, ["email", "password_hash"]),
+      deleted_at: null,
+      updated_at: db.fn.now(),
+      is_deleted: false,
+    });
 };
 
 /**
