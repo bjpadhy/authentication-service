@@ -19,24 +19,9 @@ export const signUp = async (req, res) => {
   }
 };
 
-export const initiateResetPassword = async (req, res) => {
+export const generateOTP = async (req, res) => {
   try {
-    const result = await generateAndShareUserOTP({
-      email: _.get(req, "body.email", ""),
-      triggerAction: "RESET_PASSWORD",
-    });
-    return res.status(202).json(result);
-  } catch (error) {
-    return errorHandler({ error }, res);
-  }
-};
-
-export const initiateUpdatePassword = async (req, res) => {
-  try {
-    const result = await generateAndShareUserOTP({
-      email: _.get(req, "body.email", ""),
-      triggerAction: "UPDATE_PASSWORD",
-    });
+    const result = await generateAndShareUserOTP(req.body);
     return res.status(202).json(result);
   } catch (error) {
     return errorHandler({ error }, res);

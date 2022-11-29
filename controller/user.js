@@ -5,7 +5,7 @@ import {
   ResourceConflictError,
   InternalError,
 } from "../lib/error";
-import { isEmailValid, convertObjectKeysToSnakeCase, sendEmail } from "../lib/utils";
+import { isEmailValid, convertObjectKeysToSnakeCase, sendEmail, SUPPORTED_OTP_TRIGGER_TYPES } from "../lib/utils";
 import { generateUserOTP, getUserByEmail, upsertUser, verifyUserPassword } from "../model/user";
 import { nanoid } from "nanoid";
 import * as jose from "jose";
@@ -124,25 +124,27 @@ const _generateJWT = (payload) => {
  * @function
  * @param {Object} payloadData - OTP generation payload
  * @param {String} payloadData.email - user email
- * @param {String} payloadData.triggerAction - action for which the OTP is to be used
+ * @param {String} payloadData.type - action for which the OTP is to be used
  * @returns {Promise<Object>} Promise object with isSuccess response boolean whether OTP generation and share was success
  *
  * @throws {BadRequestInputError} When user email is invalid
  * @throws {InternalError} When OTP generation/sharing fails
  */
 export const generateAndShareUserOTP = async (payloadData) => {
-  const { email = "", triggerAction = "" } = payloadData;
+  const { email = "", type = "" } = payloadData;
 
   // Validate email
-  if (!isEmailValid(email) || !triggerAction.length) throw new BadRequestInputError("Invalid input data", { email });
+  if (!isEmailValid(email)) throw new BadRequestInputError("Email address format is invalid", { email });
+  if (!SUPPORTED_OTP_TRIGGER_TYPES.includes(type))
+    throw new BadRequestInputError("Unsupported type for OTP generation", { email });
 
   // Generate OTP
-  const { OTP } = await generateUserOTP(email, triggerAction);
+  const { OTP } = await generateUserOTP(email, type);
   if (!OTP) throw new InternalError("Error while generating OTP", { email });
 
   // Send email to user
   const response = await sendEmail({
-    templateType: triggerAction,
+    templateType: type,
     userEmail: email,
     OTP,
   });
