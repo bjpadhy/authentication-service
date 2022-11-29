@@ -5,7 +5,7 @@ import {
   ResourceConflictError,
   InternalError,
 } from "../lib/error";
-import { isEmailValid, convertObjectKeysToSnakeCase } from "../lib/utils";
+import { isEmailValid, convertObjectKeysToSnakeCase, sendEmail } from "../lib/utils";
 import { generateResetPasswordOTP, getUserByEmail, upsertUser, verifyUserPassword } from "../model/user";
 import { nanoid } from "nanoid";
 import * as jose from "jose";
@@ -140,7 +140,12 @@ export const generateAndShareResetPasswordOTP = async (payloadData) => {
   const { initiate_reset_password: OTP } = await generateResetPasswordOTP(email);
   if (!OTP) throw new InternalError("Error while generating OTP", { email });
 
-  // TODO: Send email to user
+  // Send email to user
+  const response = await sendEmail({
+    templateType: "RESET_PASSWORD",
+    userEmail: email,
+    OTP,
+  });
 
-  return { isSuccess: true };
+  return { isSuccess: response };
 };

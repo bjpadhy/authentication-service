@@ -22,7 +22,7 @@ export const signUp = async (req, res) => {
 export const initiateResetPassword = async (req, res) => {
   try {
     const result = await generateAndShareResetPasswordOTP(req.body);
-    return res.status(201).json(result);
+    return res.status(202).json(result);
   } catch (error) {
     return errorHandler({ error }, res);
   }
