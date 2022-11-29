@@ -1,5 +1,5 @@
 import { errorHandler } from "../lib/error.js";
-import { generateAndShareResetPasswordOTP, signInUser, signUpUser } from "../controller/user";
+import { generateAndShareUserOTP, signInUser, signUpUser } from "../controller/user";
 
 export const signIn = async (req, res) => {
   try {
@@ -21,7 +21,10 @@ export const signUp = async (req, res) => {
 
 export const initiateResetPassword = async (req, res) => {
   try {
-    const result = await generateAndShareResetPasswordOTP(req.body);
+    const result = await generateAndShareUserOTP({
+      email: _.get(req, "body.email", ""),
+      triggerAction: "RESET_PASSWORD",
+    });
     return res.status(202).json(result);
   } catch (error) {
     return errorHandler({ error }, res);

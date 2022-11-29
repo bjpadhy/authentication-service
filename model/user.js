@@ -116,15 +116,3 @@ export const generateUserOTP = (email, triggerType) => {
     .from(db.raw("auth.generate_otp(?, ?)", [email, triggerType]))
     .first();
 };
-
-/**
- * Initiate password reset and generate OTP
- *
- * @function
- * @param {String} email - user email
- *
- * @returns {Promise<Number>} Promise integer OTP
- */
-export const generateResetPasswordOTP = (email) => {
-  return db.select("*").from(db.raw("auth.initiate_reset_password(?)", email)).first();
-};

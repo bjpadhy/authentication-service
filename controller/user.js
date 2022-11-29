@@ -122,20 +122,19 @@ const _generateJWT = (payload) => {
  * Generates OTP and sends email to user
  * @async
  * @function
- * @param {Object} payloadData - Reset password payload
+ * @param {Object} payloadData - OTP generation payload
  * @param {String} payloadData.email - user email
- *
+ * @param {String} payloadData.triggerAction - action for which the OTP is to be used
  * @returns {Promise<Object>} Promise object with isSuccess response boolean whether OTP generation and share was success
  *
  * @throws {BadRequestInputError} When user email is invalid
  * @throws {InternalError} When OTP generation/sharing fails
  */
-export const generateAndShareResetPasswordOTP = async (payloadData) => {
-  const { email = "" } = payloadData;
-  const triggerAction = "RESET_PASSWORD";
+export const generateAndShareUserOTP = async (payloadData) => {
+  const { email = "", triggerAction = "" } = payloadData;
 
   // Validate email
-  if (!isEmailValid(email)) throw new BadRequestInputError("Email address is invalid", { email });
+  if (!isEmailValid(email) || !triggerAction.length) throw new BadRequestInputError("Invalid input data", { email });
 
   // Generate OTP
   const { OTP } = await generateUserOTP(email, triggerAction);
