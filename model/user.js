@@ -106,6 +106,22 @@ export const upsertUser = (payloadData) => {
  *
  * @function
  * @param {String} email - user email
+ * @param {String} triggerType - action for which OTP is to be used
+ *
+ * @returns {Promise<Number>} Promise integer OTP
+ */
+export const generateUserOTP = (email, triggerType) => {
+  return db
+    .select(`generate_otp AS OTP`)
+    .from(db.raw("auth.generate_otp(?, ?)", [email, triggerType]))
+    .first();
+};
+
+/**
+ * Initiate password reset and generate OTP
+ *
+ * @function
+ * @param {String} email - user email
  *
  * @returns {Promise<Number>} Promise integer OTP
  */

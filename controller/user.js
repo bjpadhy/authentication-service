@@ -6,7 +6,7 @@ import {
   InternalError,
 } from "../lib/error";
 import { isEmailValid, convertObjectKeysToSnakeCase, sendEmail } from "../lib/utils";
-import { generateResetPasswordOTP, getUserByEmail, upsertUser, verifyUserPassword } from "../model/user";
+import { generateUserOTP, getUserByEmail, upsertUser, verifyUserPassword } from "../model/user";
 import { nanoid } from "nanoid";
 import * as jose from "jose";
 
@@ -132,17 +132,18 @@ const _generateJWT = (payload) => {
  */
 export const generateAndShareResetPasswordOTP = async (payloadData) => {
   const { email = "" } = payloadData;
+  const triggerAction = "RESET_PASSWORD";
 
   // Validate email
   if (!isEmailValid(email)) throw new BadRequestInputError("Email address is invalid", { email });
 
   // Generate OTP
-  const { initiate_reset_password: OTP } = await generateResetPasswordOTP(email);
+  const { OTP } = await generateUserOTP(email, triggerAction);
   if (!OTP) throw new InternalError("Error while generating OTP", { email });
 
   // Send email to user
   const response = await sendEmail({
-    templateType: "RESET_PASSWORD",
+    templateType: triggerAction,
     userEmail: email,
     OTP,
   });
