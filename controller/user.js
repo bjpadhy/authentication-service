@@ -5,8 +5,8 @@ import {
   ResourceConflictError,
   InternalError,
 } from "../lib/error";
-import { isEmailValid, convertObjectKeysToSnakeCase } from "../lib/utils";
-import { getUserByEmail, upsertUser, verifyUserPassword } from "../model/user";
+import { isEmailValid, convertObjectKeysToSnakeCase, sendEmail } from "../lib/utils";
+import { generateResetPasswordOTP, getUserByEmail, upsertUser, verifyUserPassword } from "../model/user";
 import { nanoid } from "nanoid";
 import * as jose from "jose";
 
@@ -37,7 +37,7 @@ export const signUpUser = async (payloadData) => {
   // If it's a new user or deleted user, execute upsert
   const upsertData = convertObjectKeysToSnakeCase({ ...validatedPayloadData, ...additionalData });
 
-  // Upsert user and get claims data
+  // Upsert user and get claims data; password hashing handled in PostgreSQL using pgcrypto
   const user = _.first(await upsertUser(upsertData));
 
   // If signUp was success, return the JWT
@@ -116,4 +116,36 @@ const _generateJWT = (payload) => {
     .setIssuer(`auth-service:${process.pid}`)
     .setExpirationTime("4h")
     .sign(privateKey);
+};
+
+/**
+ * Generates OTP and sends email to user
+ * @async
+ * @function
+ * @param {Object} payloadData - Reset password payload
+ * @param {String} payloadData.email - user email
+ *
+ * @returns {Promise<Object>} Promise object with isSuccess response boolean whether OTP generation and share was success
+ *
+ * @throws {BadRequestInputError} When user email is invalid
+ * @throws {InternalError} When OTP generation/sharing fails
+ */
+export const generateAndShareResetPasswordOTP = async (payloadData) => {
+  const { email = "" } = payloadData;
+
+  // Validate email
+  if (!isEmailValid(email)) throw new BadRequestInputError("Email address is invalid", { email });
+
+  // Generate OTP
+  const { initiate_reset_password: OTP } = await generateResetPasswordOTP(email);
+  if (!OTP) throw new InternalError("Error while generating OTP", { email });
+
+  // Send email to user
+  const response = await sendEmail({
+    templateType: "RESET_PASSWORD",
+    userEmail: email,
+    OTP,
+  });
+
+  return { isSuccess: response };
 };

@@ -22,18 +22,18 @@ export const verifyUserPassword = (email, password) => {
       db.raw(
         `u.id, 
               u.email, 
-              COALESCE(ut.user_type, 'PRIMARY') AS "userType", 
-              COALESCE(ut.roles, '{admin}'::text[]) AS roles, 
+              COALESCE(gut.user_type, 'PRIMARY') AS "userType", 
+              COALESCE(gut.roles, '{admin}'::text[]) AS roles, 
               (u.password_hash = crypt(?, u.password_hash)) AS assert_password,
               u.is_reset_password_initiated`,
         password
       )
     )
-    .leftJoin("auth.user_additional_info_map AS uaim", function () {
-      this.on("uaim.fk_user_id", "u.id").on("uaim.is_deleted", db.raw("?", false));
+    .leftJoin("auth.user_info AS ui", function () {
+      this.on("ui.fk_user_id", "u.id").on("ui.is_deleted", db.raw("?", false));
     })
-    .leftJoin("auth.user_type AS ut", function () {
-      this.on("ut.id", "uaim.fk_user_type_id").on("ut.is_deleted", db.raw("?", false));
+    .leftJoin("auth.generic_user_type AS gut", function () {
+      this.on("gut.id", "ui.fk_user_type_id").on("gut.is_deleted", db.raw("?", false));
     })
     .where({ "u.email": email, "u.is_deleted": false })
     .first();
@@ -89,14 +89,26 @@ export const upsertUser = (payloadData) => {
     })
     .select(
       db.raw(
-        `in_data.id, in_data.email, COALESCE(ut.user_type, 'PRIMARY') AS "userType", COALESCE(ut.roles, '{admin}'::text[]) AS roles`
+        `in_data.id, in_data.email, COALESCE(gut.user_type, 'PRIMARY') AS "userType", COALESCE(gut.roles, '{admin}'::text[]) AS roles`
       )
     )
     .from("in_data")
-    .leftJoin("auth.user_additional_info_map AS uaim", function () {
-      this.on("uaim.fk_user_id", "in_data.id").on("uaim.is_deleted", db.raw("?", false));
+    .leftJoin("auth.user_info AS ui", function () {
+      this.on("ui.fk_user_id", "in_data.id").on("ui.is_deleted", db.raw("?", false));
     })
-    .leftJoin("auth.user_type AS ut", function () {
-      this.on("ut.id", "uaim.fk_user_type_id").on("ut.is_deleted", db.raw("?", false));
+    .leftJoin("auth.generic_user_type AS gut", function () {
+      this.on("gut.id", "ui.fk_user_type_id").on("gut.is_deleted", db.raw("?", false));
     });
+};
+
+/**
+ * Initiate password reset and generate OTP
+ *
+ * @function
+ * @param {String} email - user email
+ *
+ * @returns {Promise<Number>} Promise integer OTP
+ */
+export const generateResetPasswordOTP = (email) => {
+  return db.select("*").from(db.raw("auth.initiate_reset_password(?)", email)).first();
 };
