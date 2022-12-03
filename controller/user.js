@@ -5,8 +5,14 @@ import {
   ResourceConflictError,
   InternalError,
 } from "../lib/error";
-import { isEmailValid, convertObjectKeysToSnakeCase, sendEmail } from "../lib/utils";
-import { generateResetPasswordOTP, getUserByEmail, upsertUser, verifyUserPassword } from "../model/user";
+import { isEmailValid, convertObjectKeysToSnakeCase, sendEmail, SUPPORTED_OTP_TRIGGER_TYPES } from "../lib/utils";
+import {
+  generateUserOTP,
+  getUserByEmail,
+  upsertUser,
+  validateOTPAndUpdatePassword,
+  verifyUserPassword,
+} from "../model/user";
 import { nanoid } from "nanoid";
 import * as jose from "jose";
 
@@ -108,8 +114,9 @@ export const signInUser = async (payloadData) => {
  * @returns {Promise<String>} JWT Token
  */
 const _generateJWT = (payload) => {
+  const { id, email, source_id } = payload;
   const privateKey = new TextEncoder().encode(env.PRIVATE_KEY);
-  return new jose.SignJWT(payload)
+  return new jose.SignJWT({ id, email, source_id })
     .setProtectedHeader({ alg: "HS256" })
     .setJti(nanoid())
     .setIssuedAt()
@@ -122,30 +129,61 @@ const _generateJWT = (payload) => {
  * Generates OTP and sends email to user
  * @async
  * @function
- * @param {Object} payloadData - Reset password payload
+ * @param {Object} payloadData - OTP generation payload
  * @param {String} payloadData.email - user email
- *
+ * @param {String} payloadData.type - action for which the OTP is to be used
  * @returns {Promise<Object>} Promise object with isSuccess response boolean whether OTP generation and share was success
  *
  * @throws {BadRequestInputError} When user email is invalid
  * @throws {InternalError} When OTP generation/sharing fails
  */
-export const generateAndShareResetPasswordOTP = async (payloadData) => {
-  const { email = "" } = payloadData;
+export const generateAndShareUserOTP = async (payloadData) => {
+  const { email = "", type = "" } = payloadData;
 
   // Validate email
-  if (!isEmailValid(email)) throw new BadRequestInputError("Email address is invalid", { email });
+  if (!isEmailValid(email)) throw new BadRequestInputError("Email address format is invalid", { email });
+  if (!SUPPORTED_OTP_TRIGGER_TYPES.includes(type))
+    throw new BadRequestInputError("Unsupported type for OTP generation", { email });
 
   // Generate OTP
-  const { initiate_reset_password: OTP } = await generateResetPasswordOTP(email);
+  const { OTP } = await generateUserOTP(email, type);
   if (!OTP) throw new InternalError("Error while generating OTP", { email });
 
   // Send email to user
   const response = await sendEmail({
-    templateType: "RESET_PASSWORD",
+    templateType: type,
     userEmail: email,
     OTP,
   });
 
   return { isSuccess: response };
+};
+
+/**
+ * Updates user password
+ * @async
+ * @function
+ * @param {Object} payloadData - OTP generation payload
+ * @param {String} payloadData.email - user email
+ * @param {Number} payloadData.otp - otp generated for password update or reset
+ * @param {String} payloadData.newPassword - new updated password
+ *
+ * @returns {Promise<Object>} Promise object with isSuccess response boolean whether password reset was success
+ *
+ * @throws {BadRequestInputError} When user email or otp is invalid
+ * @throws {InternalError} When password reset fails
+ */
+export const updatePasswordByOTP = async (payloadData) => {
+  const { email, otp, newPassword } = payloadData;
+  const isInputEmpty = _.some({ email, otp, newPassword }, _.isNil);
+
+  if (isInputEmpty || !isEmailValid(email)) throw new BadRequestInputError("Invalid input", { email });
+
+  try {
+    const { isSuccess } = await validateOTPAndUpdatePassword(email, otp, newPassword);
+    return { isSuccess };
+  } catch (error) {
+    // Catch exceptions thrown by db function
+    throw new BadRequestInputError(_.get(error, "hint", ""), { email });
+  }
 };
