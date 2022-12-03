@@ -42,7 +42,7 @@ WHERE u.email = user_email
                                           expiration_time = now() + '5 minutes'
                                           RETURNING otp INTO return_otp;
 
-IF trigger_type = 'RESET_PASSWORD' THEN
+IF trigger_type = 'UPDATE_PASSWORD' THEN
 UPDATE auth.user SET is_reset_password_initiated = true WHERE email = user_email;
 END IF;
 
@@ -50,7 +50,7 @@ RETURN return_otp;
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION auth.update_password(user_email text, user_otp int, trigger_type text, new_password text)
+CREATE OR REPLACE FUNCTION auth.update_password(user_email text, user_otp int, new_password text)
     RETURNS BOOLEAN
     LANGUAGE plpgsql
 AS
@@ -60,24 +60,35 @@ is_otp_expired BOOLEAN;
     is_success     BOOLEAN;
     user_id        UUID;
     otp_id         UUID;
+    otp_val        INTEGER;
 BEGIN
-    is_success = NOT is_otp_expired;
-
-SELECT uu.id, upro.expiration_time < now(), upro.id
+SELECT uu.id, upro.expiration_time < now(), upro.otp, upro.id
 FROM auth.user_otp_map upro
          INNER JOIN auth.user uu
                     ON uu.id = upro.fk_user_id AND uu.is_deleted = false AND
-                       uu.is_reset_password_initiated = true AND upro.type = trigger_type
+                       uu.is_reset_password_initiated = true AND upro.type = 'UPDATE_PASSWORD'
 WHERE uu.email = user_email
-  AND upro.otp = user_otp
-    INTO user_id, is_otp_expired, otp_id;
+    INTO user_id, is_otp_expired, otp_val, otp_id;
 
-IF is_otp_expired = false AND otp_id IS NOT NULL THEN
+is_success = NOT is_otp_expired;
+
+    IF otp_id IS NULL THEN
+        RAISE EXCEPTION 'OTP_NOT_FOUND' USING HINT = 'Please generate an OTP first';
+END IF;
+
+    IF otp_val != user_otp THEN
+        RAISE EXCEPTION 'OTP_INCORRECT' USING HINT = 'OTP entered is incorrect';
+END IF;
+
+    IF is_otp_expired = true THEN
+        RAISE EXCEPTION 'OTP_EXPIRED' USING HINT = 'Your OTP has expired. Please generate a new OTP';
+END IF;
+
+    IF is_otp_expired = false THEN
 UPDATE auth.user u
 SET password_hash               = new_password,
-    is_reset_password_initiated = CASE
-                                      WHEN trigger_type = 'RESET_PASSWORD' THEN false
-                                      ELSE is_reset_password_initiated END
+    is_reset_password_initiated = false,
+    updated_at                  = now()
 WHERE u.id = user_id;
 DELETE FROM auth.user_otp_map WHERE id = otp_id;
 END IF;

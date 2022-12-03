@@ -6,7 +6,13 @@ import {
   InternalError,
 } from "../lib/error";
 import { isEmailValid, convertObjectKeysToSnakeCase, sendEmail, SUPPORTED_OTP_TRIGGER_TYPES } from "../lib/utils";
-import { generateUserOTP, getUserByEmail, upsertUser, verifyUserPassword } from "../model/user";
+import {
+  generateUserOTP,
+  getUserByEmail,
+  upsertUser,
+  validateOTPAndUpdatePassword,
+  verifyUserPassword,
+} from "../model/user";
 import { nanoid } from "nanoid";
 import * as jose from "jose";
 
@@ -151,4 +157,33 @@ export const generateAndShareUserOTP = async (payloadData) => {
   });
 
   return { isSuccess: response };
+};
+
+/**
+ * Updates user password
+ * @async
+ * @function
+ * @param {Object} payloadData - OTP generation payload
+ * @param {String} payloadData.email - user email
+ * @param {Number} payloadData.otp - otp generated for password update or reset
+ * @param {String} payloadData.newPassword - new updated password
+ *
+ * @returns {Promise<Object>} Promise object with isSuccess response boolean whether password reset was success
+ *
+ * @throws {BadRequestInputError} When user email or otp is invalid
+ * @throws {InternalError} When password reset fails
+ */
+export const updatePasswordByOTP = async (payloadData) => {
+  const { email, otp, newPassword } = payloadData;
+  const isInputEmpty = _.some({ email, otp, newPassword }, _.isNil);
+
+  if (isInputEmpty || !isEmailValid(email)) throw new BadRequestInputError("Invalid input", { email });
+
+  try {
+    const { isSuccess } = await validateOTPAndUpdatePassword(email, otp, newPassword);
+    return { isSuccess };
+  } catch (error) {
+    // Catch exceptions thrown by db function
+    throw new BadRequestInputError(_.get(error, "hint", ""), { email });
+  }
 };

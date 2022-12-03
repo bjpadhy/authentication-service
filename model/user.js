@@ -46,19 +46,6 @@ export const getUserByEmail = (email) => {
 
 /**
  *
- * Gets non deleted users by ids
- *
- * @function
- * @param {Array<String>} userIds - user id
- *
- * @returns {Promise<User>} Promise object of type User
- */
-export const getUsersByIds = (userIds) => {
-  return db("auth.user AS u").select("u.*").whereIn("u.id", userIds).where("u.is_deleted", false);
-};
-
-/**
- *
  * Upserts user data
  *
  * @function
@@ -98,5 +85,22 @@ export const generateUserOTP = (email, triggerType) => {
   return db
     .select(`generate_otp AS OTP`)
     .from(db.raw("auth.generate_otp(?, ?)", [email, triggerType]))
+    .first();
+};
+
+/**
+ * Validate OTP generated for password update and change the password
+ *
+ * @function
+ * @param {String} email - user email
+ * @param {Number} otp - password update OTP
+ * @param {String} newPassword - new password to set
+ *
+ * @returns {Promise<Boolean>} Promise boolean for operation success
+ */
+export const validateOTPAndUpdatePassword = (email, otp, newPassword) => {
+  return db
+    .select(`update_password AS isSuccess`)
+    .from(db.raw("auth.update_password(?, ?, ?)", [email, otp, newPassword]))
     .first();
 };
