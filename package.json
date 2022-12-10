@@ -4,8 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
-    "dev": "nodemon index.js",
+    "start": "node --experimental-fetch index.js",
+    "dev": "nodemon --experimental-fetch index.js",
     "doppler-run": "doppler run --forward-signals -- npm start",
     "doppler-run-dev": "doppler run --forward-signals -- npm run dev",
     "lint": "eslint --fix '**/*.js'"
