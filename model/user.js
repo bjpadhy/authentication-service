@@ -22,12 +22,16 @@ export const verifyUserPassword = (email, password) => {
         `u.id, 
               u.email,
               u.source_id,
+              r.role,
+              r.type as user_type,
               (u.password_hash = crypt(?, u.password_hash)) AS assert_password,
-              u.is_reset_password_initiated`,
+              u.is_password_update_initiated`,
         password
       )
     )
-    .where({ "u.email": email, "u.is_deleted": false })
+    .innerJoin("auth.user_role_map AS urm", "urm.fk_user_id", "u.id")
+    .innerJoin("auth.generic_roles AS r", "urm.fk_role_id", "r.id")
+    .where({ "u.email": email, "u.is_deleted": false, "urm.is_deleted": false, "r.is_deleted": false })
     .first();
 };
 
@@ -41,7 +45,20 @@ export const verifyUserPassword = (email, password) => {
  * @returns {Promise<User>} Promise object of type User
  */
 export const getUserByEmail = (email) => {
-  return db("auth.user").select("*").where({ email, is_deleted: false });
+  return db("auth.user AS u").select("u.*").where({ email, "u.is_deleted": false });
+};
+
+/**
+ *
+ * Get generic role
+ *
+ * @function
+ * @param {String} type - user role
+ *
+ * @returns {Promise<User>} Promise object with generic role
+ */
+export const getGenericRoleByType = (type) => {
+  return db("auth.generic_roles AS r").select("r.*").where({ type, "r.is_deleted": false }).first();
 };
 
 /**
@@ -52,9 +69,9 @@ export const getUserByEmail = (email) => {
  * @param {Object} payloadData - user data
  * @param {String} payloadData.email - user email
  * @param {String} payloadData.password - user password
- * @param {String} payloadData.first_name - user first name
- * @param {String} payloadData.last_name - user last name
- * @param {String} payloadData.source_id - user source service
+ * @param {String} [payloadData.first_name] - user first name
+ * @param {String} [payloadData.last_name] - user last name
+ * @param {String} payloadData.source_id - user source id
  *
  * @returns {Promise<User>} Promise object of type User
  */
@@ -62,14 +79,38 @@ export const upsertUser = (payloadData) => {
   return db
     .insert(payloadData)
     .into("auth.user")
-    .returning("*")
     .onConflict("email")
     .merge({
       ..._.omit(payloadData, ["email", "password_hash"]),
       deleted_at: null,
       updated_at: db.fn.now(),
       is_deleted: false,
-    });
+    })
+    .returning("*");
+};
+
+/**
+ *
+ * Upserts user role mapping data
+ *
+ * @function
+ * @param {Object} payloadData - user role data
+ * @param {String} payloadData.fk_user_id - userID
+ * @param {String} payloadData.fk_role_id - generic roleID
+ *
+ * @returns {Promise<User>} Promise object of user role
+ */
+export const upsertUserRoleMap = (payloadData) => {
+  return db
+    .insert(payloadData)
+    .into("auth.user_role_map")
+    .onConflict("fk_user_id")
+    .merge({
+      ..._.omit(payloadData, "fk_user_id"),
+      updated_at: db.fn.now(),
+      is_deleted: false,
+    })
+    .returning("*");
 };
 
 /**
