@@ -1,4 +1,4 @@
-import { checkDatabaseHealth, checkSendgridHealth, secondsToDuration } from "../lib/utils";
+import { checkDatabaseHealth, checkSendgridHealth, secondsToDuration } from "../lib/utils.js";
 
 export const serviceHealthStatus = async (req) => {
   // Response time measure start

@@ -4,15 +4,15 @@ import {
   UnauthorizedError,
   ResourceConflictError,
   InternalError,
-} from "../lib/error";
-import { isEmailValid, convertObjectKeysToSnakeCase, sendEmail, SUPPORTED_OTP_TRIGGER_TYPES } from "../lib/utils";
+} from "../lib/error.js";
+import { isEmailValid, convertObjectKeysToSnakeCase, sendEmail, SUPPORTED_OTP_TRIGGER_TYPES } from "../lib/utils.js";
 import {
   generateUserOTP,
   getUserByEmail,
   upsertUser,
   validateOTPAndUpdatePassword,
   verifyUserPassword,
-} from "../model/user";
+} from "../model/user.js";
 import { nanoid } from "nanoid";
 import * as jose from "jose";
 

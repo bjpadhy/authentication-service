@@ -2,6 +2,7 @@
   "name": "authentication",
   "version": "1.0.0",
   "description": "",
+  "type": "module",
   "main": "index.js",
   "scripts": {
     "start": "node --experimental-fetch index.js",
@@ -17,12 +18,11 @@
     "@sendgrid/mail": "^7.7.0",
     "compression": "^1.7.4",
     "cors": "^2.8.5",
-    "esm": "^3.2.25",
     "express": "^4.18.2",
     "helmet": "^6.0.0",
     "jose": "^4.11.0",
     "knex": "^2.3.0",
-    "lodash": "^4.17.21",
+    "lodash-es": "^4.17.21",
     "morgan": "^1.10.0",
     "nanoid": "^3.0.0",
     "pg": "^8.8.0"
