@@ -1,5 +1,5 @@
 import { errorHandler } from "../lib/error.js";
-import { serviceHealthStatus } from "../controller/health";
+import { serviceHealthStatus } from "../controller/health.js";
 
 export const servicesHealthCheck = async (req, res) => {
   const result = await serviceHealthStatus(req);

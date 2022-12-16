@@ -1,5 +1,5 @@
 import { errorHandler } from "../lib/error.js";
-import { updatePasswordByOTP, generateAndShareUserOTP, signInUser, signUpUser } from "../controller/user";
+import { updatePasswordByOTP, generateAndShareUserOTP, signInUser, signUpUser } from "../controller/user.js";
 
 export const signIn = async (req, res) => {
   try {
@@ -36,5 +36,3 @@ export const updatePassword = async (req, res) => {
     return errorHandler({ error }, res);
   }
 };
-
-module.exports = router;

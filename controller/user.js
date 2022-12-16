@@ -4,15 +4,17 @@ import {
   UnauthorizedError,
   ResourceConflictError,
   InternalError,
-} from "../lib/error";
-import { isEmailValid, convertObjectKeysToSnakeCase, sendEmail, SUPPORTED_OTP_TRIGGER_TYPES } from "../lib/utils";
+} from "../lib/error.js";
+import { isEmailValid, convertObjectKeysToSnakeCase, sendEmail, SUPPORTED_OTP_TRIGGER_TYPES } from "../lib/utils.js";
 import {
   generateUserOTP,
+  getGenericRoleByType,
   getUserByEmail,
   upsertUser,
+  upsertUserRoleMap,
   validateOTPAndUpdatePassword,
   verifyUserPassword,
-} from "../model/user";
+} from "../model/user.js";
 import { nanoid } from "nanoid";
 import * as jose from "jose";
 
@@ -23,17 +25,22 @@ import * as jose from "jose";
  * @param {Object} payloadData - signUp payload
  * @param {String} payloadData.email - user email
  * @param {String} payloadData.password - user password
- * @param {String} payloadData.firstName - user first name
- * @param {String} payloadData.lastName - user last name
+ * @param {String} payloadData.sourceId - user source id
+ * @param {String} payloadData.role - user role
+ * @param {String} [payloadData.firstName] - user first name
+ * @param {String} [payloadData.lastName] - user last name
  * @returns {Promise<Object>} Response object with JWT Token if signup was success
  *
  * @throws {ResourceConflictError} When user with email already exists
  * @throws {InternalError} When upsert user runs into an error
  */
 export const signUpUser = async (payloadData) => {
-  const { email, password, ...additionalData } = payloadData;
+  const { email, password, sourceId, user_type, ...additionalData } = payloadData;
   // Validate required inputs
-  const validatedPayloadData = _validateEmailPassword({ email, password });
+  const { roleData, ...validatedPayloadData } = await _validateRequiredInputFields(
+    { email, password, sourceId, user_type },
+    true
+  );
 
   // Check is there is an existing user with same email
   const existingUser = await getUserByEmail(validatedPayloadData.email);
@@ -46,8 +53,13 @@ export const signUpUser = async (payloadData) => {
   // Upsert user and get claims data; password hashing handled in PostgreSQL using pgcrypto
   const user = _.first(await upsertUser(upsertData));
 
-  // If signUp was success, return the JWT
-  if (user) return { token: await _generateJWT(user) };
+  // If signUp was success, map user role and return the JWT
+  if (user) {
+    const { id: fk_role_id, type: user_type, role } = roleData;
+    // Add user role mapping
+    const userRole = await upsertUserRoleMap({ fk_user_id: user.id, fk_role_id });
+    return { token: await _generateJWT({ ...user, user_type, role }) };
+  }
 
   throw new InternalError("Error while creating user", validatedPayloadData);
 };
@@ -57,21 +69,33 @@ export const signUpUser = async (payloadData) => {
  *
  * @function
  * @param {Object} validationData - validation payload
+ * @param {Boolean} [validateForSignup] - boolean whether or not to validate role
  * @param {String} validationData.email - user email
  * @param {String} validationData.password - user password
+ * @param {String} [validationData.sourceId] - user source id
  * @returns {Object} Validated data
  * @throws {BadRequestInputError} When email or password input is missing/email format is invalid
  */
-const _validateEmailPassword = (validationData) => {
-  const { email = "", password = "" } = validationData;
+const _validateRequiredInputFields = async (validationData, validateForSignup = false) => {
+  const { email = "", password = "", sourceId = "", user_type = "" } = validationData;
 
   // Validate input presence
-  if ((email.length && password.length) === 0) throw new BadRequestInputError("Email or password missing", {});
+  if ((validateForSignup ? email.length && password.length && sourceId.length : email.length && password.length) === 0)
+    throw new BadRequestInputError("Required input missing", {});
 
   //  Validate email format
   if (!isEmailValid(email)) throw new BadRequestInputError("Email address format is invalid", { email });
 
-  return { email: _.trim(email), password_hash: _.trim(password) };
+  // Get generic role
+  const roleData = await getGenericRoleByType(user_type);
+  if (validateForSignup && !roleData) throw new BadRequestInputError("User type unsupported", { email });
+
+  return {
+    email: _.trim(email),
+    password_hash: _.trim(password),
+    source_id: _.trim(sourceId),
+    roleData,
+  };
 };
 
 /**
@@ -88,19 +112,19 @@ const _validateEmailPassword = (validationData) => {
  */
 export const signInUser = async (payloadData) => {
   // Validate input
-  const { email, password_hash: password } = _validateEmailPassword(payloadData);
+  const { email, password_hash: password } = await _validateRequiredInputFields(payloadData);
 
   // Verify password and fetch user
-  const { assert_password, is_reset_password_initiated, ...user } = (await verifyUserPassword(email, password)) || {};
+  const { assert_password, is_password_update_initiated, ...user } = (await verifyUserPassword(email, password)) || {};
   if (_.isEmpty(user)) throw new ResourceNotFoundError("User not found", { email });
 
   // If password is correct, return the JWT
-  if (assert_password && !is_reset_password_initiated) {
+  if (assert_password && !is_password_update_initiated) {
     return { token: await _generateJWT(user) };
   }
 
   // Throw 401 for incorrect password/reset initiated
-  throw new UnauthorizedError(is_reset_password_initiated ? "Password reset initiated" : "Incorrect password", {
+  throw new UnauthorizedError(is_password_update_initiated ? "Password update initiated" : "Incorrect password", {
     email,
   });
 };
@@ -114,9 +138,10 @@ export const signInUser = async (payloadData) => {
  * @returns {Promise<String>} JWT Token
  */
 const _generateJWT = (payload) => {
-  const { id, email, source_id } = payload;
+  const { id, email, source_id, user_type, role } = payload;
   const privateKey = new TextEncoder().encode(env.PRIVATE_KEY);
-  return new jose.SignJWT({ id, email, source_id })
+  return new jose.SignJWT({ id, email, user_type, role })
+    .setAudience(source_id)
     .setProtectedHeader({ alg: "HS256" })
     .setJti(nanoid())
     .setIssuedAt()

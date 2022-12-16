@@ -1,24 +1,28 @@
-const express = require("express");
-require = require("esm")(module);
+import express from "express";
 
-// Middleware imports
-const cors = require("cors");
-const compression = require("compression");
-const helmet = require("helmet");
-const morgan = require("morgan");
+// Utility imports
+import cors from "cors";
+import compression from "compression";
+import helmet from "helmet";
+import morgan from "morgan";
+import * as lodash from "lodash-es";
 
-// Data source imports
+// Data source import
+import knex from "knex";
+
+// Route handler
+import { routeHandler } from "./routes/index.js";
 
 // Globals
 global.env = process.env;
-global._ = require("lodash");
+global._ = lodash;
 global.router = express.Router();
-global.app = express();
+const app = express();
 
 // Start the server
 app.listen(env.PORT, async () => {
   // Connect postgres
-  global.db = require("knex")({
+  global.db = knex({
     client: "pg",
     connection: env.DB_URL,
   });
@@ -36,7 +40,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
 // Source route
-app.use("/", require("./routes/index.js"));
+app.use("/", routeHandler);
 
 // Handle wildcard
 app.use("*", (req, res) => {
