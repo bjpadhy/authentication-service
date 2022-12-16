@@ -145,7 +145,7 @@ const _generateJWT = (payload) => {
     .setProtectedHeader({ alg: "HS256" })
     .setJti(nanoid())
     .setIssuedAt()
-    .setIssuer(`auth-service:${process.pid}`)
+    .setIssuer(`auth-service`)
     .setExpirationTime("4h")
     .sign(privateKey);
 };
