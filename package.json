@@ -5,9 +5,9 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
+    "start": "pm2 start index.js",
     "dev": "nodemon index.js",
-    "doppler-run": "doppler run --forward-signals -- npm start",
+    "doppler-run": "doppler run --forward-signals -- pm2 start index.js",
     "doppler-run-dev": "doppler run --forward-signals -- npm run dev",
     "lint": "eslint --fix '**/*.js'"
   },
