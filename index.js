@@ -40,7 +40,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
 // Source route
-app.use("/", routeHandler);
+app.use("/auth", routeHandler);
 
 // Handle wildcard
 app.use("*", (req, res) => {
