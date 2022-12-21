@@ -21,6 +21,7 @@ export const verifyUserPassword = (email, password) => {
       db.raw(
         `u.id, 
               u.email,
+              u.first_name || ' ' || u.last_name as name,
               u.source_id,
               r.role,
               r.type as user_type,

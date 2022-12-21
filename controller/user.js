@@ -56,9 +56,18 @@ export const signUpUser = async (payloadData) => {
   // If signUp was success, map user role and return the JWT
   if (user) {
     const { id: fk_role_id, type: user_type, role } = roleData;
+    const { id, email, first_name, last_name, source_id } = user;
     // Add user role mapping
     const userRole = await upsertUserRoleMap({ fk_user_id: user.id, fk_role_id });
-    return { token: await _generateJWT({ ...user, user_type, role }) };
+    return {
+      token: await _generateJWT({ ...user, user_type, role }),
+      id,
+      email,
+      name: [first_name, last_name].join(" "),
+      sourceId: source_id,
+      userType: user_type,
+      role,
+    };
   }
 
   throw new InternalError("Error while creating user", validatedPayloadData);
@@ -120,7 +129,8 @@ export const signInUser = async (payloadData) => {
 
   // If password is correct, return the JWT
   if (assert_password && !is_password_update_initiated) {
-    return { token: await _generateJWT(user) };
+    const { id, email, source_id, user_type, role, name } = user;
+    return { token: await _generateJWT(user), id, email, name, sourceId: source_id, userType: user_type, role };
   }
 
   // Throw 401 for incorrect password/reset initiated
