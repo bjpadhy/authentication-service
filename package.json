@@ -7,7 +7,7 @@
   "scripts": {
     "start": "pm2 start index.js",
     "dev": "nodemon index.js",
-    "doppler-run": "doppler run --forward-signals -- pm2 start index.js",
+    "doppler-run": "doppler run --forward-signals -- node index.js",
     "doppler-run-dev": "doppler run --forward-signals -- npm run dev",
     "lint": "eslint --fix '**/*.js'"
   },

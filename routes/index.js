@@ -5,7 +5,7 @@ const router = express.Router();
 
 // Auth routes
 router.post("/signup", signUp);
-router.get("/signin", signIn);
+router.post("/signin", signIn);
 router.post("/generate_otp", generateOTP);
 router.post("/update_password", updatePassword);
 
