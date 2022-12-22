@@ -130,7 +130,16 @@ export const signInUser = async (payloadData) => {
   // If password is correct, return the JWT
   if (assert_password && !is_password_update_initiated) {
     const { id, email, source_id, user_type, role, name } = user;
-    return { token: await _generateJWT(user), id, email, name, sourceId: source_id, userType: user_type, role };
+    return {
+      token: await _generateJWT(user),
+      id,
+      email,
+      name,
+      role,
+      sourceId: source_id,
+      userType: user_type,
+      profileImage: user.profile_image,
+    };
   }
 
   // Throw 401 for incorrect password/reset initiated

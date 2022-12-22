@@ -47,6 +47,7 @@ CREATE TABLE auth.user
     last_name                   TEXT,
     source_id                   TEXT        NOT NULL,
     email                       TEXT UNIQUE NOT NULL,
+    profile_image               TEXT,
     password_hash               TEXT        NOT NULL,
     is_password_update_initiated BOOLEAN   DEFAULT false,
     is_deleted                  BOOLEAN   DEFAULT false,
@@ -150,7 +151,7 @@ END IF;
 
     IF is_otp_expired = false THEN
 UPDATE auth.user u
-SET password_hash               = new_password,
+SET password_hash               = crypt(new_password, gen_salt('bf')),
     is_password_update_initiated = false,
     updated_at                  = now()
 WHERE u.id = user_id;
@@ -160,22 +161,3 @@ END IF;
 RETURN is_success;
 END;
 $$;
-
-CREATE OR REPLACE FUNCTION auth.hash_user_password()
-    RETURNS TRIGGER
-    LANGUAGE plpgsql
-AS
-$$
-BEGIN
-    IF NEW.password_hash IS NOT NULL THEN
-        NEW.password_hash = crypt(NEW.password_hash, gen_salt('bf'));
-END IF;
-RETURN NEW;
-END;
-$$;
-
-CREATE TRIGGER hash_user_password
-    BEFORE INSERT OR UPDATE
-                         ON auth.user
-                         FOR EACH ROW
-                         EXECUTE PROCEDURE auth.hash_user_password();

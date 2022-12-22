@@ -22,6 +22,7 @@ export const verifyUserPassword = (email, password) => {
         `u.id, 
               u.email,
               u.first_name || ' ' || u.last_name as name,
+              u.profile_image,
               u.source_id,
               r.role,
               r.type as user_type,
@@ -69,7 +70,7 @@ export const getGenericRoleByType = (type) => {
  * @function
  * @param {Object} payloadData - user data
  * @param {String} payloadData.email - user email
- * @param {String} payloadData.password - user password
+ * @param {String} payloadData.password_hash - user password
  * @param {String} [payloadData.first_name] - user first name
  * @param {String} [payloadData.last_name] - user last name
  * @param {String} payloadData.source_id - user source id
@@ -77,12 +78,13 @@ export const getGenericRoleByType = (type) => {
  * @returns {Promise<User>} Promise object of type User
  */
 export const upsertUser = (payloadData) => {
+  const { password_hash, ...insertData } = payloadData;
   return db
-    .insert(payloadData)
+    .insert({ ...insertData, password_hash: db.raw(`crypt(?, gen_salt('bf'))`, password_hash) })
     .into("auth.user")
     .onConflict("email")
     .merge({
-      ..._.omit(payloadData, ["email", "password_hash"]),
+      ..._.omit(insertData, ["email"]),
       deleted_at: null,
       updated_at: db.fn.now(),
       is_deleted: false,
